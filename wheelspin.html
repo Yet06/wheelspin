@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Wheel Spinner</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      background: #f0f0f0;
+    }
+    #wheelCanvas {
+      border: 8px solid #444;
+      border-radius: 50%;
+      background: white;
+      margin-top: 1rem;
+    }
+    .input-area {
+      margin-bottom: 1rem;
+      width: 300px;
+      display: none;
+    }
+    #spinButton {
+      padding: 0.5rem 1rem;
+      font-size: 1.2rem;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Secret Biased Wheel</h1>
+  <textarea class="input-area" id="namesInput" rows="4" placeholder="Enter names (e.g., Alice, Bob, Charlie, Dana)"></textarea>
+  <button id="spinButton">Spin!</button>
+  <canvas id="wheelCanvas" width="400" height="400"></canvas>
+  <h2 id="result"></h2>
+
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      const canvas = document.getElementById("wheelCanvas");
+      const ctx = canvas.getContext("2d");
+      const resultText = document.getElementById("result");
+      const spinButton = document.getElementById("spinButton");
+      const namesInput = document.getElementById("namesInput");
+
+      let names = [];
+      let weightedNames = [];
+      let anglePerSlice = 0;
+      let startAngle = 0;
+      let spinning = false;
+
+      // 🎯 Secret probability weights set only in code
+      const secretWeights = {
+        "Leader 2.97^2": 10,
+        "Xinchi": 1,
+        "Jester": 1,
+      };
+
+      function parseNames(input) {
+        const rawNames = input.split(",").map(n => n.trim()).filter(n => n);
+        names = [];
+        weightedNames = [];
+        for (let n of rawNames) {
+          if (!names.includes(n)) names.push(n); // Avoid duplicates on display
+          const weight = secretWeights[n] || 1;
+          for (let i = 0; i < weight; i++) {
+            weightedNames.push(n);
+          }
+        }
+      }
+
+      function drawWheel() {
+        const slices = names.length;
+        if (slices === 0) return;
+        anglePerSlice = (2 * Math.PI) / slices;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let i = 0; i < slices; i++) {
+          const angle = startAngle + i * anglePerSlice;
+          ctx.beginPath();
+          ctx.moveTo(200, 200);
+          ctx.arc(200, 200, 200, angle, angle + anglePerSlice);
+          ctx.fillStyle = i % 2 === 0 ? "#aaf" : "#faa";
+          ctx.fill();
+          ctx.stroke();
+          ctx.save();
+          ctx.translate(200, 200);
+          ctx.rotate(angle + anglePerSlice / 2);
+          ctx.textAlign = "right";
+          ctx.fillStyle = "#000";
+          ctx.font = "16px sans-serif";
+          ctx.fillText(names[i], 180, 10);
+          ctx.restore();
+        }
+      }
+
+      function spinWheel() {
+        if (spinning || weightedNames.length === 0) return;
+        spinning = true;
+
+        const chosen = weightedNames[Math.floor(Math.random() * weightedNames.length)];
+        const index = names.indexOf(chosen);
+        const stopAngle = (3 * Math.PI / 2) - (index * anglePerSlice + anglePerSlice / 2);
+
+        let currentRotation = 0;
+        let spinTime = 0;
+        const duration = 4000;
+        const spinInterval = 20;
+
+        const spin = setInterval(() => {
+          spinTime += spinInterval;
+          const easeOut = 1 - Math.pow(1 - spinTime / duration, 3);
+          currentRotation = easeOut * (stopAngle + 10 * 2 * Math.PI);
+          startAngle = currentRotation;
+          drawWheel();
+          if (spinTime >= duration) {
+            clearInterval(spin);
+            spinning = false;
+            resultText.textContent = `Winner: ${chosen}`;
+          }
+        }, spinInterval);
+      }
+
+      spinButton.onclick = () => {
+        parseNames(namesInput.value);
+        if (names.length < 2) {
+          alert("Enter at least 2 names.");
+          return;
+        }
+        drawWheel();
+        spinWheel();
+      };
+
+      // SECRET MODE: toggle textarea with Ctrl + Shift + S
+      window.addEventListener("keydown", (e) => {
+        if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "s") {
+          namesInput.style.display = namesInput.style.display === "none" ? "block" : "none";
+        }
+      });
+
+      // Default startup
+      namesInput.value = "Alice, Bob, Charlie, Dana";
+      parseNames(namesInput.value);
+      drawWheel();
+    });
+  </script>
+</body>
+</html>
